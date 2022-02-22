@@ -1,0 +1,60 @@
+spring:
+  shardingsphere:
+    datasource:
+      names: ds0,ds1,ds2
+      ds0:
+        type: com.alibaba.druid.pool.DruidDataSource
+        driver-class-name: org.h2.Driver
+        jdbc-url: jdbc:h2:mem:master;MODE=MYSQL;DATABASE_TO_LOWER=TRUE;INIT=RUNSCRIPT FROM 'classpath:db/schema.sql'
+        username: lingh
+        password: ""
+      ds1:
+        type: com.alibaba.druid.pool.DruidDataSource
+        driver-class-name: org.h2.Driver
+        jdbc-url: jdbc:h2:mem:slave1;MODE=MYSQL;DATABASE_TO_LOWER=TRUE;INIT=RUNSCRIPT FROM 'classpath:db/schema.sql'
+        username: lingh
+        password: ""
+      ds2:
+        type: com.alibaba.druid.pool.DruidDataSource
+        driver-class-name: org.h2.Driver
+        jdbc-url: jdbc:h2:mem:slave2;MODE=MYSQL;DATABASE_TO_LOWER=TRUE;INIT=RUNSCRIPT FROM 'classpath:db/schema.sql'
+        username: lingh
+        password: ""
+    rules:
+      sharding:
+        tables:
+          t_order:
+            actualDataNodes: ds0.t_order$->{0..1}
+            tableStrategy:
+              standard:
+                shardingColumn: order_id
+                shardingAlgorithmName: lingh-inline
+            keyGenerateStrategy:
+              column: order_id
+              keyGeneratorName: lingh-snowflake
+        sharding-algorithms:
+          lingh-inline:
+            type: INLINE
+            props:
+              algorithm-expression: t_order$->{order_id % 2}
+              allow-range-query-with-inline-sharding: false
+        key-generators:
+          lingh-snowflake:
+            type: SNOWFLAKE
+            props:
+              max-vibration-offset: 1
+              max-tolerate-time-difference-milliseconds: 10
+      readwrite-splitting:
+        data-sources:
+          lingh-readwrite-data-sources:
+            type: Static
+            props:
+              write-data-source-name: ds0
+              read-data-source-names: ds1,ds2
+            load-balancer-name: lingh-load-balance-algorithm
+        load-balancers:
+          lingh-load-balance-algorithm:
+            type: ROUND_ROBIN
+logging:
+  level:
+    org.apache.shardingsphere: debug
